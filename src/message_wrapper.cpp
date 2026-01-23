@@ -798,8 +798,10 @@ const sbg_driver::msg::SbgMag MessageWrapper::createSbgMagMessage(const SbgEComL
 {
   sbg_driver::msg::SbgMag  mag_message;
 
-  // MAG timestamps need to be divided by 1000 to correct for a firmware encoding difference
-  // This fixes the 71.6 minute (4296 second) timestamp offset bug
+  // FIX: MAG log timestamps appear to be encoded with an extra factor of 1000 in the firmware,
+  // despite SDK documentation stating they should be in microseconds like other logs.
+  // Dividing by 1000 corrects timestamps that would otherwise be ~71.6 minutes (4296 seconds) in the future.
+  // This is likely due to MAG timestamps being in milliseconds while other logs use microseconds.
   mag_message.header      = createRosHeader(ref_log_mag.timeStamp / 1000);
   mag_message.time_stamp  = ref_log_mag.timeStamp / 1000;
   mag_message.status      = createMagStatusMessage(ref_log_mag);
@@ -833,8 +835,8 @@ const sbg_driver::msg::SbgMagCalib MessageWrapper::createSbgMagCalibMessage(cons
   sbg_driver::msg::SbgMagCalib mag_calib_message;
 
   // TODO. SbgMagCalib is not implemented.
-  // MAG timestamps need to be divided by 1000 to correct for a firmware encoding difference
-  // This fixes the 71.6 minute (4296 second) timestamp offset bug
+  // FIX: MAG_CALIB timestamps have the same encoding issue as MAG timestamps (see createSbgMagMessage)
+  // Dividing by 1000 corrects the 71.6 minute (4296 second) timestamp offset.
   mag_calib_message.header = createRosHeader(ref_log_mag_calib.timeStamp / 1000);
 
   return mag_calib_message;
