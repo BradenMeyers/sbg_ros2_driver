@@ -12,6 +12,7 @@
 #include <sbg_ros_helpers.h>
 
 // STL headers
+#include <cstdint>
 #include <type_traits>
 
 using sbg::MessageWrapper;
@@ -100,12 +101,12 @@ const rclcpp::Time MessageWrapper::convertInsTimeToUnix(uint32_t device_timestam
   {
     // device_timestamp < last_sbg_utc_.time_stamp
     // Check if this is a rollover or a delayed/out-of-order message.
-    uint32_t backward_diff = last_sbg_utc_.time_stamp - device_timestamp;
+    uint32_t timestamp_backward_diff = last_sbg_utc_.time_stamp - device_timestamp;
     
-    if (backward_diff < (UINT32_MAX / 2))
+    if (timestamp_backward_diff < (UINT32_MAX / 2))
     {
       // Small backward difference: likely a delayed or out-of-order message.
-      // Treat timestamp as equal to avoid adding 71.6 minutes.
+      // Set timestamp_diff to 0 to maintain current time for delayed messages.
       timestamp_diff = 0;
     }
     else
