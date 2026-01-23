@@ -87,6 +87,9 @@ const rclcpp::Time MessageWrapper::convertInsTimeToUnix(uint32_t device_timestam
   utc_to_epoch = convertUtcTimeToUnix(last_sbg_utc_);
 
   // Handle 32-bit device timestamp rollover.
+  // Use a threshold to distinguish between out-of-order/delayed messages and actual rollovers.
+  // If device_timestamp is less than last timestamp, check if the difference is large enough
+  // to be considered a rollover (> UINT32_MAX/2) or just a delayed message.
   uint32_t timestamp_diff;
   if (device_timestamp >= last_sbg_utc_.time_stamp)
   {
@@ -95,8 +98,21 @@ const rclcpp::Time MessageWrapper::convertInsTimeToUnix(uint32_t device_timestam
   }
   else
   {
-    // Rollover has occurred: handle the wraparound.
-    timestamp_diff = device_timestamp + (UINT32_MAX - last_sbg_utc_.time_stamp) + 1;
+    // device_timestamp < last_sbg_utc_.time_stamp
+    // Check if this is a rollover or a delayed/out-of-order message.
+    uint32_t backward_diff = last_sbg_utc_.time_stamp - device_timestamp;
+    
+    if (backward_diff < (UINT32_MAX / 2))
+    {
+      // Small backward difference: likely a delayed or out-of-order message.
+      // Treat timestamp as equal to avoid adding 71.6 minutes.
+      timestamp_diff = 0;
+    }
+    else
+    {
+      // Large backward difference: likely a rollover has occurred.
+      timestamp_diff = device_timestamp + (UINT32_MAX - last_sbg_utc_.time_stamp) + 1;
+    }
   }
 
   nanoseconds  = utc_to_epoch.nanoseconds() + static_cast<uint64_t>(timestamp_diff) * 1000;
