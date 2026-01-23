@@ -798,8 +798,10 @@ const sbg_driver::msg::SbgMag MessageWrapper::createSbgMagMessage(const SbgEComL
 {
   sbg_driver::msg::SbgMag  mag_message;
 
-  mag_message.header      = createRosHeader(ref_log_mag.timeStamp);
-  mag_message.time_stamp  = ref_log_mag.timeStamp;
+  // MAG timestamps need to be divided by 1000 to correct for a firmware encoding difference
+  // This fixes the 71.6 minute (4296 second) timestamp offset bug
+  mag_message.header      = createRosHeader(ref_log_mag.timeStamp / 1000);
+  mag_message.time_stamp  = ref_log_mag.timeStamp / 1000;
   mag_message.status      = createMagStatusMessage(ref_log_mag);
 
   if (use_enu_)
@@ -831,7 +833,9 @@ const sbg_driver::msg::SbgMagCalib MessageWrapper::createSbgMagCalibMessage(cons
   sbg_driver::msg::SbgMagCalib mag_calib_message;
 
   // TODO. SbgMagCalib is not implemented.
-  mag_calib_message.header = createRosHeader(ref_log_mag_calib.timeStamp);
+  // MAG timestamps need to be divided by 1000 to correct for a firmware encoding difference
+  // This fixes the 71.6 minute (4296 second) timestamp offset bug
+  mag_calib_message.header = createRosHeader(ref_log_mag_calib.timeStamp / 1000);
 
   return mag_calib_message;
 }
