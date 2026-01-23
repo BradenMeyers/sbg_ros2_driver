@@ -12,6 +12,7 @@
 #include <sbg_ros_helpers.h>
 
 // STL headers
+#include <cstdint>
 #include <type_traits>
 
 using sbg::MessageWrapper;
@@ -82,24 +83,24 @@ const rclcpp::Time MessageWrapper::convertInsTimeToUnix(uint32_t device_timestam
   // Add the SBG timestamp difference (timestamp is in microsecond).
   //
   rclcpp::Time utc_to_epoch;
-  uint64_t  nanoseconds;
+  int64_t  nanoseconds;
 
   utc_to_epoch = convertUtcTimeToUnix(last_sbg_utc_);
 
   // Handle 32-bit device timestamp rollover.
-  uint32_t timestamp_diff;
-  if (device_timestamp >= last_sbg_utc_.time_stamp)
+  // Calculate the signed timestamp difference. If the difference is negative and
+  // greater than UINT32_MAX/2 in magnitude, assume a rollover has occurred.
+  int64_t timestamp_diff = static_cast<int64_t>(device_timestamp) - static_cast<int64_t>(last_sbg_utc_.time_stamp);
+  
+  // Check if this looks like a rollover (large negative difference).
+  // If the backward difference exceeds half the uint32 range, treat it as a rollover.
+  if (timestamp_diff < -(static_cast<int64_t>(UINT32_MAX) / 2))
   {
-    // No rollover, straightforward time difference.
-    timestamp_diff = device_timestamp - last_sbg_utc_.time_stamp;
-  }
-  else
-  {
-    // Rollover has occurred: handle the wraparound.
-    timestamp_diff = device_timestamp + (UINT32_MAX - last_sbg_utc_.time_stamp) + 1;
+    // Rollover detected: add the full uint32 range to get the correct forward difference.
+    timestamp_diff += (static_cast<int64_t>(UINT32_MAX) + 1);
   }
 
-  nanoseconds  = utc_to_epoch.nanoseconds() + static_cast<uint64_t>(timestamp_diff) * 1000;
+  nanoseconds  = utc_to_epoch.nanoseconds() + timestamp_diff * 1000;
 
   utc_to_epoch = rclcpp::Time(nanoseconds);
 
