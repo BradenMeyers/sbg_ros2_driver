@@ -94,7 +94,7 @@ const rclcpp::Time MessageWrapper::convertInsTimeToUnix(uint32_t device_timestam
   
   // Check if this looks like a rollover (large negative difference).
   // If the backward difference exceeds half the uint32 range, treat it as a rollover.
-  if (timestamp_diff < 0 && (-timestamp_diff) > (UINT32_MAX / 2))
+  if (timestamp_diff < -(static_cast<int64_t>(UINT32_MAX) / 2))
   {
     // Rollover detected: add the full uint32 range to get the correct forward difference.
     timestamp_diff += (static_cast<int64_t>(UINT32_MAX) + 1);
