@@ -39,6 +39,12 @@ using sbg::MessageWrapper;
 #define SBG_ECOM_LOG_IMU_TEMP_SCALE_STD                     (256.0f)
 
 /*!
+ * MAG timestamp scale factor to correct firmware encoding difference.
+ * MAG timestamps need to be divided by this factor (milliseconds to microseconds conversion).
+ */
+#define SBG_ECOM_LOG_MAG_TIME_SCALE                          (1000u)
+
+/*!
  * Class to wrap the SBG logs into ROS messages.
  */
 //---------------------------------------------------------------------//
@@ -798,12 +804,10 @@ const sbg_driver::msg::SbgMag MessageWrapper::createSbgMagMessage(const SbgEComL
 {
   sbg_driver::msg::SbgMag  mag_message;
 
-  // FIX: MAG log timestamps appear to be encoded with an extra factor of 1000 in the firmware,
-  // despite SDK documentation stating they should be in microseconds like other logs.
-  // Dividing by 1000 corrects timestamps that would otherwise be ~71.6 minutes (4296 seconds) in the future.
-  // This is likely due to MAG timestamps being in milliseconds while other logs use microseconds.
-  mag_message.header      = createRosHeader(ref_log_mag.timeStamp / 1000);
-  mag_message.time_stamp  = ref_log_mag.timeStamp / 1000;
+  // FIX: MAG timestamps require division by 1000 due to firmware encoding difference (milliseconds vs microseconds).
+  // This corrects timestamps that would otherwise be ~71.6 minutes (4296 seconds) in the future.
+  mag_message.header      = createRosHeader(ref_log_mag.timeStamp / SBG_ECOM_LOG_MAG_TIME_SCALE);
+  mag_message.time_stamp  = ref_log_mag.timeStamp / SBG_ECOM_LOG_MAG_TIME_SCALE;
   mag_message.status      = createMagStatusMessage(ref_log_mag);
 
   if (use_enu_)
@@ -835,9 +839,8 @@ const sbg_driver::msg::SbgMagCalib MessageWrapper::createSbgMagCalibMessage(cons
   sbg_driver::msg::SbgMagCalib mag_calib_message;
 
   // TODO. SbgMagCalib is not implemented.
-  // FIX: MAG_CALIB timestamps have the same encoding issue as MAG timestamps (see createSbgMagMessage)
-  // Dividing by 1000 corrects the 71.6 minute (4296 second) timestamp offset.
-  mag_calib_message.header = createRosHeader(ref_log_mag_calib.timeStamp / 1000);
+  // FIX: MAG_CALIB timestamps have the same encoding issue as MAG timestamps (see createSbgMagMessage).
+  mag_calib_message.header = createRosHeader(ref_log_mag_calib.timeStamp / SBG_ECOM_LOG_MAG_TIME_SCALE);
 
   return mag_calib_message;
 }
