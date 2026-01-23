@@ -40,7 +40,7 @@ using sbg::MessageWrapper;
 
 /*!
  * MAG timestamp scale factor to correct firmware encoding difference.
- * MAG timestamps need to be divided by this factor (milliseconds to microseconds conversion).
+ * MAG timestamps are in milliseconds and need to be multiplied by this factor to convert to microseconds.
  */
 #define SBG_ECOM_LOG_MAG_TIME_SCALE                          (1000u)
 
@@ -804,10 +804,11 @@ const sbg_driver::msg::SbgMag MessageWrapper::createSbgMagMessage(const SbgEComL
 {
   sbg_driver::msg::SbgMag  mag_message;
 
-  // FIX: MAG timestamps require division by 1000 due to firmware encoding difference (milliseconds vs microseconds).
-  // This corrects timestamps that would otherwise be ~71.6 minutes (4296 seconds) in the future.
-  mag_message.header      = createRosHeader(ref_log_mag.timeStamp / SBG_ECOM_LOG_MAG_TIME_SCALE);
-  mag_message.time_stamp  = ref_log_mag.timeStamp / SBG_ECOM_LOG_MAG_TIME_SCALE;
+  // FIX: MAG timestamps are in milliseconds but the driver expects microseconds.
+  // Multiply by 1000 to upscale to microseconds, ensuring rollover logic and synchronization work correctly.
+  uint32_t corrected_timestamp = ref_log_mag.timeStamp * SBG_ECOM_LOG_MAG_TIME_SCALE;
+  mag_message.header      = createRosHeader(corrected_timestamp);
+  mag_message.time_stamp  = corrected_timestamp;
   mag_message.status      = createMagStatusMessage(ref_log_mag);
 
   if (use_enu_)
@@ -839,8 +840,9 @@ const sbg_driver::msg::SbgMagCalib MessageWrapper::createSbgMagCalibMessage(cons
   sbg_driver::msg::SbgMagCalib mag_calib_message;
 
   // TODO. SbgMagCalib is not implemented.
-  // FIX: MAG_CALIB timestamps have the same encoding issue as MAG timestamps (see createSbgMagMessage).
-  mag_calib_message.header = createRosHeader(ref_log_mag_calib.timeStamp / SBG_ECOM_LOG_MAG_TIME_SCALE);
+  // FIX: MAG_CALIB timestamps have the same encoding issue as MAG timestamps (milliseconds, not microseconds).
+  uint32_t corrected_timestamp = ref_log_mag_calib.timeStamp * SBG_ECOM_LOG_MAG_TIME_SCALE;
+  mag_calib_message.header = createRosHeader(corrected_timestamp);
 
   return mag_calib_message;
 }
