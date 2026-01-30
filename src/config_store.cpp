@@ -38,6 +38,8 @@ void ConfigStore::loadOdomParameters(const rclcpp::Node& ref_node_handle)
   ref_node_handle.get_parameter_or<std::string>("odometry.odomFrameId", odom_frame_id_      , "odom");
   ref_node_handle.get_parameter_or<std::string>("odometry.baseFrameId", odom_base_frame_id_ , "base_link");
   ref_node_handle.get_parameter_or<std::string>("odometry.initFrameId", odom_init_frame_id_ , "map");
+  ref_node_handle.get_parameter_or<bool>       ("odometry.wait_for_datum", odom_wait_for_datum_, false);
+  ref_node_handle.get_parameter_or<std::vector<double>>("odometry.datum", odom_datum_, std::vector<double>());
 }
 
 void ConfigStore::loadCommunicationParameters(const rclcpp::Node& ref_node_handle)
@@ -416,6 +418,16 @@ const std::string &ConfigStore::getOdomBaseFrameId() const
 const std::string &ConfigStore::getOdomInitFrameId() const
 {
   return odom_init_frame_id_;
+}
+
+bool ConfigStore::getOdomWaitForDatum() const
+{
+  return odom_wait_for_datum_;
+}
+
+const std::vector<double> &ConfigStore::getOdomDatum() const
+{
+  return odom_datum_;
 }
 
 bool ConfigStore::shouldSubscribeToRtcm() const

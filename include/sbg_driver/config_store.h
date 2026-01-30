@@ -124,6 +124,8 @@ private:
   std::string                 odom_frame_id_;
   std::string                 odom_base_frame_id_;
   std::string                 odom_init_frame_id_;
+  bool                        odom_wait_for_datum_;
+  std::vector<double>         odom_datum_;
 
   bool                        rtcm_subscribe_;
   std::string                 rtcm_full_topic_;
@@ -537,6 +539,20 @@ public:
    * \return                      Odometry init frame ID.
    */
   const std::string &getOdomInitFrameId() const;
+
+  /*!
+   * Get the odometry wait for datum flag.
+   *
+   * \return                      If true, wait for datum to be provided.
+   */
+  bool getOdomWaitForDatum() const;
+
+  /*!
+   * Get the odometry datum [latitude, longitude, altitude].
+   *
+   * \return                      Datum vector [lat, lon, alt].
+   */
+  const std::vector<double> &getOdomDatum() const;
 
   /*!
    * Get the time reference.
