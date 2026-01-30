@@ -113,6 +113,14 @@ private:
   //---------------------------------------------------------------------//
 
   /*!
+   * Initialize the UTM origin from either manual datum or first valid GPS fix.
+   * 
+   * \param[in] ref_ekf_nav_msg    Current EKF navigation message.
+   * \return                       True if initialization succeeded, false if waiting for datum.
+   */
+  bool initializeUtmOrigin(const sbg_driver::msg::SbgEkfNav &ref_ekf_nav_msg);
+
+  /*!
    * Create a ROS message header.
    * 
    * \param[in] device_timestamp    SBG device timestamp (in microseconds).

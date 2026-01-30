@@ -49,6 +49,7 @@ MessageWrapper::MessageWrapper():
 Node("tf_broadcaster")
 {
   first_valid_utc_ = false;
+  odom_wait_for_datum_ = false;
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
   static_tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
 }
@@ -56,6 +57,74 @@ Node("tf_broadcaster")
 //---------------------------------------------------------------------//
 //- Internal methods                                                  -//
 //---------------------------------------------------------------------//
+
+bool MessageWrapper::initializeUtmOrigin(const sbg_driver::msg::SbgEkfNav &ref_ekf_nav_msg)
+{
+  // Check if manual datum is configured
+  if (odom_wait_for_datum_ && odom_datum_.size() == 3)
+  {
+    // Use manual datum [lat, lon, alt]
+    double datum_lat = odom_datum_[0];
+    double datum_lon = odom_datum_[1];
+    double datum_alt = odom_datum_[2];
+    
+    // Validate datum values
+    if (datum_lat < -90.0 || datum_lat > 90.0)
+    {
+      RCLCPP_ERROR(rclcpp::get_logger("Message wrapper"), 
+        "Invalid datum latitude: %f (must be between -90 and 90 degrees). Falling back to first valid fix.", datum_lat);
+      // Fall through to use first valid fix
+    }
+    else if (datum_lon < -180.0 || datum_lon > 180.0)
+    {
+      RCLCPP_ERROR(rclcpp::get_logger("Message wrapper"), 
+        "Invalid datum longitude: %f (must be between -180 and 180 degrees). Falling back to first valid fix.", datum_lon);
+      // Fall through to use first valid fix
+    }
+    else
+    {
+      // Valid datum - use it
+      utm_.init(datum_lat, datum_lon);
+      const auto first_valid_easting_northing = utm_.computeEastingNorthing(datum_lat, datum_lon);
+      first_valid_easting_ = first_valid_easting_northing[0];
+      first_valid_northing_ = first_valid_easting_northing[1];
+      first_valid_altitude_ = datum_alt;
+
+      RCLCPP_INFO(rclcpp::get_logger("Message wrapper"), "initialized from manual datum - lat:%f long:%f alt:%f UTM zone %d%c: easting:%fm (%dkm) northing:%fm (%dkm)"
+      , datum_lat, datum_lon, datum_alt, utm_.getZoneNumber(), utm_.getLetterDesignator()
+      , first_valid_easting_, (int)(first_valid_easting_) / 1000
+      , first_valid_northing_, (int)(first_valid_northing_) / 1000
+      );
+      
+      return true;
+    }
+  }
+  
+  if (!odom_wait_for_datum_)
+  {
+    // Use first valid GPS fix as origin (original behavior)
+    utm_.init(ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude);
+    const auto first_valid_easting_northing = utm_.computeEastingNorthing(ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude);
+    first_valid_easting_ = first_valid_easting_northing[0];
+    first_valid_northing_ = first_valid_easting_northing[1];
+    first_valid_altitude_ = ref_ekf_nav_msg.altitude;
+
+    RCLCPP_INFO(rclcpp::get_logger("Message wrapper"), "initialized from first valid fix - lat:%f long:%f UTM zone %d%c: easting:%fm (%dkm) northing:%fm (%dkm)"
+    , ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude, utm_.getZoneNumber(), utm_.getLetterDesignator()
+    , first_valid_easting_, (int)(first_valid_easting_) / 1000
+    , first_valid_northing_, (int)(first_valid_northing_) / 1000
+    );
+    
+    return true;
+  }
+  else
+  {
+    // Wait for datum to be configured, do not initialize yet
+    RCLCPP_WARN_THROTTLE(rclcpp::get_logger("Message wrapper"), rclcpp::Clock(), 5000, 
+      "Waiting for datum configuration. Set odometry.wait_for_datum to false or provide valid odometry.datum parameter.");
+    return false;
+  }
+}
 
 const std_msgs::msg::Header MessageWrapper::createRosHeader(uint32_t device_timestamp) const
 {
@@ -1115,46 +1184,9 @@ const nav_msgs::msg::Odometry MessageWrapper::createRosOdoMessage(const sbg_driv
   // Convert latitude and longitude to UTM coordinates.
   if (!utm_.isInit())
   {
-    // Check if manual datum is configured
-    if (odom_wait_for_datum_ && odom_datum_.size() == 3)
+    if (!initializeUtmOrigin(ref_ekf_nav_msg))
     {
-      // Use manual datum [lat, lon, alt]
-      double datum_lat = odom_datum_[0];
-      double datum_lon = odom_datum_[1];
-      double datum_alt = odom_datum_[2];
-      
-      utm_.init(datum_lat, datum_lon);
-      const auto first_valid_easting_northing = utm_.computeEastingNorthing(datum_lat, datum_lon);
-      first_valid_easting_ = first_valid_easting_northing[0];
-      first_valid_northing_ = first_valid_easting_northing[1];
-      first_valid_altitude_ = datum_alt;
-
-      RCLCPP_INFO(rclcpp::get_logger("Message wrapper"), "initialized from manual datum - lat:%f long:%f alt:%f UTM zone %d%c: easting:%fm (%dkm) northing:%fm (%dkm)"
-      , datum_lat, datum_lon, datum_alt, utm_.getZoneNumber(), utm_.getLetterDesignator()
-      , first_valid_easting_, (int)(first_valid_easting_) / 1000
-      , first_valid_northing_, (int)(first_valid_northing_) / 1000
-      );
-    }
-    else if (!odom_wait_for_datum_)
-    {
-      // Use first valid GPS fix as origin (original behavior)
-      utm_.init(ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude);
-      const auto first_valid_easting_northing = utm_.computeEastingNorthing(ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude);
-      first_valid_easting_ = first_valid_easting_northing[0];
-      first_valid_northing_ = first_valid_easting_northing[1];
-      first_valid_altitude_ = ref_ekf_nav_msg.altitude;
-
-      RCLCPP_INFO(rclcpp::get_logger("Message wrapper"), "initialized from first valid fix - lat:%f long:%f UTM zone %d%c: easting:%fm (%dkm) northing:%fm (%dkm)"
-      , ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude, utm_.getZoneNumber(), utm_.getLetterDesignator()
-      , first_valid_easting_, (int)(first_valid_easting_) / 1000
-      , first_valid_northing_, (int)(first_valid_northing_) / 1000
-      );
-    }
-    else
-    {
-      // Wait for datum to be configured, do not initialize yet
-      RCLCPP_WARN_THROTTLE(rclcpp::get_logger("Message wrapper"), rclcpp::Clock(), 5000, 
-        "Waiting for datum configuration. Set odometry.wait_for_datum to false or provide odometry.datum parameter.");
+      // Initialization failed (waiting for datum), return empty message
       return odo_ros_msg;
     }
 
@@ -1252,46 +1284,9 @@ const nav_msgs::msg::Odometry MessageWrapper::createRosOdoMessage(const sbg_driv
   // Convert latitude and longitude to UTM coordinates.
   if (!utm_.isInit())
   {
-    // Check if manual datum is configured
-    if (odom_wait_for_datum_ && odom_datum_.size() == 3)
+    if (!initializeUtmOrigin(ref_ekf_nav_msg))
     {
-      // Use manual datum [lat, lon, alt]
-      double datum_lat = odom_datum_[0];
-      double datum_lon = odom_datum_[1];
-      double datum_alt = odom_datum_[2];
-      
-      utm_.init(datum_lat, datum_lon);
-      const auto first_valid_easting_northing = utm_.computeEastingNorthing(datum_lat, datum_lon);
-      first_valid_easting_ = first_valid_easting_northing[0];
-      first_valid_northing_ = first_valid_easting_northing[1];
-      first_valid_altitude_ = datum_alt;
-
-      RCLCPP_INFO(rclcpp::get_logger("Message wrapper"), "initialized from manual datum - lat:%f long:%f alt:%f UTM zone %d%c: easting:%fm (%dkm) northing:%fm (%dkm)"
-      , datum_lat, datum_lon, datum_alt, utm_.getZoneNumber(), utm_.getLetterDesignator()
-      , first_valid_easting_, (int)(first_valid_easting_) / 1000
-      , first_valid_northing_, (int)(first_valid_northing_) / 1000
-      );
-    }
-    else if (!odom_wait_for_datum_)
-    {
-      // Use first valid GPS fix as origin (original behavior)
-      utm_.init(ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude);
-      const auto first_valid_easting_northing = utm_.computeEastingNorthing(ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude);
-      first_valid_easting_ = first_valid_easting_northing[0];
-      first_valid_northing_ = first_valid_easting_northing[1];
-      first_valid_altitude_ = ref_ekf_nav_msg.altitude;
-
-      RCLCPP_INFO(rclcpp::get_logger("Message wrapper"), "initialized from first valid fix - lat:%f long:%f UTM zone %d%c: easting:%fm (%dkm) northing:%fm (%dkm)"
-      , ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude, utm_.getZoneNumber(), utm_.getLetterDesignator()
-      , first_valid_easting_, (int)(first_valid_easting_) / 1000
-      , first_valid_northing_, (int)(first_valid_northing_) / 1000
-      );
-    }
-    else
-    {
-      // Wait for datum to be configured, do not initialize yet
-      RCLCPP_WARN_THROTTLE(rclcpp::get_logger("Message wrapper"), rclcpp::Clock(), 5000, 
-        "Waiting for datum configuration. Set odometry.wait_for_datum to false or provide odometry.datum parameter.");
+      // Initialization failed (waiting for datum), return empty message
       return odo_ros_msg;
     }
 

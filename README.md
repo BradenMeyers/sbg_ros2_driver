@@ -239,7 +239,7 @@ For each ROS2 standard, you have to activate the needed SBG outputs.
 * **`/imu/odometry`** [nav_msgs/Odometry](http://docs.ros.org/en/melodic/api/nav_msgs/html/msg/Odometry.html)
 
   UTM projected position relative to a reference origin.
-  Requires `/sbg/imu_data` and `/sbg/ekv_nav` and either `/sbg/ekf_euler` or `/sbg/ekf_quat`.
+  Requires `/sbg/imu_data` and `/sbg/ekf_nav` and either `/sbg/ekf_euler` or `/sbg/ekf_quat`.
   Disabled by default, set `odometry.enable` in configuration file.
   
   **Origin Configuration:**
