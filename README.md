@@ -238,9 +238,16 @@ For each ROS2 standard, you have to activate the needed SBG outputs.
   
 * **`/imu/odometry`** [nav_msgs/Odometry](http://docs.ros.org/en/melodic/api/nav_msgs/html/msg/Odometry.html)
 
-  UTM projected position relative to the first valid INS position.
+  UTM projected position relative to a reference origin.
   Requires `/sbg/imu_data` and `/sbg/ekv_nav` and either `/sbg/ekf_euler` or `/sbg/ekf_quat`.
   Disabled by default, set `odometry.enable` in configuration file.
+  
+  **Origin Configuration:**
+  - By default, uses the first valid INS position as origin (original behavior)
+  - Can be configured to use a manual datum (origin) via `odometry.datum` parameter
+  - Set `odometry.wait_for_datum: true` to use manual origin override
+  - Format: `datum: [latitude, longitude, altitude]` (degrees, degrees, meters WGS84)
+  - Example: `datum: [55.944904, -3.186693, 0.0]`
 
 > [!NOTE]
 > Please update the driver configuration to enable standard ROS2 messages publication. Also, the driver only publish standard ROS2 messages if the driver is setup to use ENU frame convention.
