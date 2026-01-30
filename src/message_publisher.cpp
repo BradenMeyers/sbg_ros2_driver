@@ -552,6 +552,8 @@ void MessagePublisher::initPublishers(rclcpp::Node& ref_ros_node_handle, const C
   message_wrapper_.setOdomFrameId(ref_config_store.getOdomFrameId());
   message_wrapper_.setOdomBaseFrameId(ref_config_store.getOdomBaseFrameId());
   message_wrapper_.setOdomInitFrameId(ref_config_store.getOdomInitFrameId());
+  message_wrapper_.setOdomWaitForDatum(ref_config_store.getOdomWaitForDatum());
+  message_wrapper_.setOdomDatum(ref_config_store.getOdomDatum());
 
   for (const ConfigStore::SbgLogOutput &ref_output : ref_output_modes)
   {

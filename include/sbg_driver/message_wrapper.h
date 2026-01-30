@@ -100,6 +100,8 @@ private:
   std::string                         odom_frame_id_;
   std::string                         odom_base_frame_id_;
   std::string                         odom_init_frame_id_;
+  bool                                odom_wait_for_datum_;
+  std::vector<double>                 odom_datum_;
 
   Utm                                 utm_{};
   double                              first_valid_easting_{};
@@ -327,6 +329,20 @@ public:
    * \param[in] ref_frame_id     Odometry init frame ID.
    */
   void setOdomInitFrameId(const std::string &ref_frame_id);
+
+  /*!
+   * Set the odometry wait for datum flag.
+   *
+   * \param[in] wait_for_datum   If true, wait for datum to be provided.
+   */
+  void setOdomWaitForDatum(bool wait_for_datum);
+
+  /*!
+   * Set the odometry datum [latitude, longitude, altitude].
+   *
+   * \param[in] datum           Datum vector [lat, lon, alt].
+   */
+  void setOdomDatum(const std::vector<double> &datum);
 
   //---------------------------------------------------------------------//
   //- Operations                                                        -//
