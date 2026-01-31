@@ -39,6 +39,12 @@ using sbg::MessageWrapper;
 #define SBG_ECOM_LOG_IMU_TEMP_SCALE_STD                     (256.0f)
 
 /*!
+ * MAG timestamp scale factor to correct firmware encoding difference.
+ * MAG timestamps are in milliseconds and need to be multiplied by this factor to convert to microseconds.
+ */
+#define SBG_ECOM_LOG_MAG_TIME_SCALE                          (1000u)
+
+/*!
  * Class to wrap the SBG logs into ROS messages.
  */
 //---------------------------------------------------------------------//
@@ -794,8 +800,11 @@ const sbg_driver::msg::SbgMag MessageWrapper::createSbgMagMessage(const SbgEComL
 {
   sbg_driver::msg::SbgMag  mag_message;
 
-  mag_message.header      = createRosHeader(ref_log_mag.timeStamp);
-  mag_message.time_stamp  = ref_log_mag.timeStamp;
+  // FIX: MAG timestamps are in milliseconds but the driver expects microseconds.
+  // Multiply by 1000 to upscale to microseconds, ensuring rollover logic and synchronization work correctly.
+  uint32_t corrected_timestamp = ref_log_mag.timeStamp * SBG_ECOM_LOG_MAG_TIME_SCALE;
+  mag_message.header      = createRosHeader(corrected_timestamp);
+  mag_message.time_stamp  = corrected_timestamp;
   mag_message.status      = createMagStatusMessage(ref_log_mag);
 
   if (use_enu_)
@@ -827,7 +836,9 @@ const sbg_driver::msg::SbgMagCalib MessageWrapper::createSbgMagCalibMessage(cons
   sbg_driver::msg::SbgMagCalib mag_calib_message;
 
   // TODO. SbgMagCalib is not implemented.
-  mag_calib_message.header = createRosHeader(ref_log_mag_calib.timeStamp);
+  // FIX: MAG_CALIB timestamps have the same encoding issue as MAG timestamps (milliseconds, not microseconds).
+  uint32_t corrected_timestamp = ref_log_mag_calib.timeStamp * SBG_ECOM_LOG_MAG_TIME_SCALE;
+  mag_calib_message.header = createRosHeader(corrected_timestamp);
 
   return mag_calib_message;
 }
