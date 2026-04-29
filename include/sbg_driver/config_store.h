@@ -124,6 +124,9 @@ private:
   std::string                 odom_frame_id_;
   std::string                 odom_base_frame_id_;
   std::string                 odom_init_frame_id_;
+  double                      odom_datum_lat_{0.0};
+  double                      odom_datum_lon_{0.0};
+  double                      odom_datum_alt_{0.0};
 
   bool                        rtcm_subscribe_;
   std::string                 rtcm_full_topic_;
@@ -537,6 +540,27 @@ public:
    * \return                      Odometry init frame ID.
    */
   const std::string &getOdomInitFrameId() const;
+
+  /*!
+   * Get the odometry datum latitude.
+   *
+   * \return                      Datum latitude (degrees). 0.0 means "use first GPS fix".
+   */
+  double getOdomDatumLat() const;
+
+  /*!
+   * Get the odometry datum longitude.
+   *
+   * \return                      Datum longitude (degrees). 0.0 means "use first GPS fix".
+   */
+  double getOdomDatumLon() const;
+
+  /*!
+   * Get the odometry datum altitude.
+   *
+   * \return                      Datum altitude (meters above WGS84). 0.0 means "use first GPS fix".
+   */
+  double getOdomDatumAlt() const;
 
   /*!
    * Get the time reference.

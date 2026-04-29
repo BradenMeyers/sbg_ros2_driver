@@ -435,6 +435,13 @@ void MessageWrapper::setOdomInitFrameId(const std::string &ref_frame_id)
   odom_init_frame_id_ = ref_frame_id;
 }
 
+void MessageWrapper::setOdomDatum(double lat, double lon, double alt)
+{
+  datum_lat_ = lat;
+  datum_lon_ = lon;
+  datum_alt_ = alt;
+}
+
 //---------------------------------------------------------------------//
 //- Operations                                                        -//
 //---------------------------------------------------------------------//
@@ -1105,14 +1112,18 @@ const nav_msgs::msg::Odometry MessageWrapper::createRosOdoMessage(const sbg_driv
   // Convert latitude and longitude to UTM coordinates.
   if (!utm_.isInit())
   {
-    utm_.init(ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude);
-    const auto first_valid_easting_northing = utm_.computeEastingNorthing(ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude);
+    double init_lat = (datum_lat_ != 0.0) ? datum_lat_ : ref_ekf_nav_msg.latitude;
+    double init_lon = (datum_lon_ != 0.0) ? datum_lon_ : ref_ekf_nav_msg.longitude;
+    double init_alt = (datum_alt_ != 0.0) ? datum_alt_ : ref_ekf_nav_msg.altitude;
+
+    utm_.init(init_lat, init_lon);
+    const auto first_valid_easting_northing = utm_.computeEastingNorthing(init_lat, init_lon);
     first_valid_easting_ = first_valid_easting_northing[0];
     first_valid_northing_ = first_valid_easting_northing[1];
-    first_valid_altitude_ = ref_ekf_nav_msg.altitude;
+    first_valid_altitude_ = init_alt;
 
     RCLCPP_INFO(rclcpp::get_logger("Message wrapper"), "initialized from lat:%f long:%f UTM zone %d%c: easting:%fm (%dkm) northing:%fm (%dkm)"
-    , ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude, utm_.getZoneNumber(), utm_.getLetterDesignator()
+    , init_lat, init_lon, utm_.getZoneNumber(), utm_.getLetterDesignator()
     , first_valid_easting_, (int)(first_valid_easting_) / 1000
     , first_valid_northing_, (int)(first_valid_northing_) / 1000
     );
@@ -1211,14 +1222,18 @@ const nav_msgs::msg::Odometry MessageWrapper::createRosOdoMessage(const sbg_driv
   // Convert latitude and longitude to UTM coordinates.
   if (!utm_.isInit())
   {
-    utm_.init(ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude);
-    const auto first_valid_easting_northing = utm_.computeEastingNorthing(ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude);
+    double init_lat = (datum_lat_ != 0.0) ? datum_lat_ : ref_ekf_nav_msg.latitude;
+    double init_lon = (datum_lon_ != 0.0) ? datum_lon_ : ref_ekf_nav_msg.longitude;
+    double init_alt = (datum_alt_ != 0.0) ? datum_alt_ : ref_ekf_nav_msg.altitude;
+
+    utm_.init(init_lat, init_lon);
+    const auto first_valid_easting_northing = utm_.computeEastingNorthing(init_lat, init_lon);
     first_valid_easting_ = first_valid_easting_northing[0];
     first_valid_northing_ = first_valid_easting_northing[1];
-    first_valid_altitude_ = ref_ekf_nav_msg.altitude;
+    first_valid_altitude_ = init_alt;
 
     RCLCPP_INFO(rclcpp::get_logger("Message wrapper"), "initialized from lat:%f long:%f UTM zone %d%c: easting:%fm (%dkm) northing:%fm (%dkm)"
-    , ref_ekf_nav_msg.latitude, ref_ekf_nav_msg.longitude, utm_.getZoneNumber(), utm_.getLetterDesignator()
+    , init_lat, init_lon, utm_.getZoneNumber(), utm_.getLetterDesignator()
     , first_valid_easting_, (int)(first_valid_easting_) / 1000
     , first_valid_northing_, (int)(first_valid_northing_) / 1000
     );

@@ -105,6 +105,9 @@ private:
   double                              first_valid_easting_{};
   double                              first_valid_northing_{};
   double                              first_valid_altitude_{};
+  double                              datum_lat_{0.0};
+  double                              datum_lon_{0.0};
+  double                              datum_alt_{0.0};
 
   //---------------------------------------------------------------------//
   //- Internal methods                                                  -//
@@ -327,6 +330,17 @@ public:
    * \param[in] ref_frame_id     Odometry init frame ID.
    */
   void setOdomInitFrameId(const std::string &ref_frame_id);
+
+  /*!
+   * Set a fixed geographic datum for odometry origin.
+   * When set (non-zero lat/lon), the odometry local frame is anchored at this
+   * location instead of the first GPS fix.
+   *
+   * \param[in] lat   Datum latitude (degrees).
+   * \param[in] lon   Datum longitude (degrees).
+   * \param[in] alt   Datum altitude (meters above WGS84).
+   */
+  void setOdomDatum(double lat, double lon, double alt);
 
   //---------------------------------------------------------------------//
   //- Operations                                                        -//
