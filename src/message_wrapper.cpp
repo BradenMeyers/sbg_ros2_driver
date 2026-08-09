@@ -1,3 +1,5 @@
+#define _USE_MATH_DEFINES
+
 // File header
 #include "message_wrapper.h"
 
@@ -12,7 +14,12 @@
 #include <sbg_ros_helpers.h>
 
 // STL headers
+#include <cmath>
 #include <type_traits>
+
+#ifndef M_SQRT2
+#define M_SQRT2 1.41421356237309504880
+#endif
 
 using sbg::MessageWrapper;
 
@@ -405,6 +412,11 @@ void MessageWrapper::setFrameId(const std::string &frame_id)
   frame_id_ = frame_id;
 }
 
+void MessageWrapper::setGpsFrameId(const std::string &gps_frame_id)
+{
+  gps_frame_id_ = gps_frame_id;
+}
+
 void MessageWrapper::setUseEnu(bool enu)
 {
   use_enu_ = enu;
@@ -564,12 +576,12 @@ const sbg_driver::msg::SbgEkfVelBody MessageWrapper::createSbgEkfVelBodyMessage(
 
   if (use_enu_)
   {
-    ekf_vel_body_message.velocity.x = ref_log_ekf_vel_body.velocity[1];
-    ekf_vel_body_message.velocity.y = ref_log_ekf_vel_body.velocity[0];
+    ekf_vel_body_message.velocity.x = ref_log_ekf_vel_body.velocity[0];
+    ekf_vel_body_message.velocity.y = -ref_log_ekf_vel_body.velocity[1];
     ekf_vel_body_message.velocity.z = -ref_log_ekf_vel_body.velocity[2];
 
-    ekf_vel_body_message.velocity_accuracy.x = ref_log_ekf_vel_body.velocityStdDev[1];
-    ekf_vel_body_message.velocity_accuracy.y = ref_log_ekf_vel_body.velocityStdDev[0];
+    ekf_vel_body_message.velocity_accuracy.x = ref_log_ekf_vel_body.velocityStdDev[0];
+    ekf_vel_body_message.velocity_accuracy.y = ref_log_ekf_vel_body.velocityStdDev[1];
     ekf_vel_body_message.velocity_accuracy.z = ref_log_ekf_vel_body.velocityStdDev[2];
   }
   else
@@ -586,14 +598,24 @@ const sbg_driver::msg::SbgEkfVelBody MessageWrapper::createSbgEkfVelBodyMessage(
   return ekf_vel_body_message;
 }
 
-const sbg_driver::msg::SbgEkfRotAccel MessageWrapper::createSbgEkfRotAccelMessage(const SbgEComLogEkfRotAccel& ref_log_ekf_rot_accel) const
+const sbg_driver::msg::SbgEkfRotAccel MessageWrapper::createSbgEkfRotAccelMessage(const SbgEComLogEkfRotAccel& ref_log_ekf_rot_accel, bool body_frame) const
 {
   sbg_driver::msg::SbgEkfRotAccel ekf_vel_rot_accel_message;
 
   ekf_vel_rot_accel_message.header            = createRosHeader(ref_log_ekf_rot_accel.timeStamp);
   ekf_vel_rot_accel_message.time_stamp        = ref_log_ekf_rot_accel.timeStamp;
 
-  if (use_enu_)
+  if (use_enu_ && body_frame)
+  {
+    ekf_vel_rot_accel_message.rate.x = ref_log_ekf_rot_accel.rate[0];
+    ekf_vel_rot_accel_message.rate.y = -ref_log_ekf_rot_accel.rate[1];
+    ekf_vel_rot_accel_message.rate.z = -ref_log_ekf_rot_accel.rate[2];
+
+    ekf_vel_rot_accel_message.acceleration.x = ref_log_ekf_rot_accel.acceleration[0];
+    ekf_vel_rot_accel_message.acceleration.y = -ref_log_ekf_rot_accel.acceleration[1];
+    ekf_vel_rot_accel_message.acceleration.z = -ref_log_ekf_rot_accel.acceleration[2];
+  }
+  else if (use_enu_)
   {
     ekf_vel_rot_accel_message.rate.x = ref_log_ekf_rot_accel.rate[1];
     ekf_vel_rot_accel_message.rate.y = ref_log_ekf_rot_accel.rate[0];
@@ -643,6 +665,7 @@ const sbg_driver::msg::SbgGpsHdt MessageWrapper::createSbgGpsHdtMessage(const Sb
   sbg_driver::msg::SbgGpsHdt gps_hdt_message;
 
   gps_hdt_message.header           = createRosHeader(ref_log_gps_hdt.timeStamp);
+  gps_hdt_message.header.frame_id  = gps_frame_id_;
   gps_hdt_message.time_stamp       = ref_log_gps_hdt.timeStamp;
   gps_hdt_message.status           = ref_log_gps_hdt.status;
   gps_hdt_message.tow              = ref_log_gps_hdt.timeOfWeek;
@@ -670,8 +693,9 @@ const sbg_driver::msg::SbgGpsPos MessageWrapper::createSbgGpsPosMessage(const Sb
 {
   sbg_driver::msg::SbgGpsPos gps_pos_message;
 
-  gps_pos_message.header      = createRosHeader(ref_log_gps_pos.timeStamp);
-  gps_pos_message.time_stamp  = ref_log_gps_pos.timeStamp;
+  gps_pos_message.header          = createRosHeader(ref_log_gps_pos.timeStamp);
+  gps_pos_message.header.frame_id = gps_frame_id_;
+  gps_pos_message.time_stamp      = ref_log_gps_pos.timeStamp;
 
   gps_pos_message.status              = createGpsPosStatusMessage(ref_log_gps_pos);
   gps_pos_message.gps_tow             = ref_log_gps_pos.timeOfWeek;
@@ -714,8 +738,9 @@ const sbg_driver::msg::SbgGpsVel MessageWrapper::createSbgGpsVelMessage(const Sb
 {
   sbg_driver::msg::SbgGpsVel gps_vel_message;
 
-  gps_vel_message.header      = createRosHeader(ref_log_gps_vel.timeStamp);
-  gps_vel_message.time_stamp  = ref_log_gps_vel.timeStamp;
+  gps_vel_message.header          = createRosHeader(ref_log_gps_vel.timeStamp);
+  gps_vel_message.header.frame_id = gps_frame_id_;
+  gps_vel_message.time_stamp      = ref_log_gps_vel.timeStamp;
   gps_vel_message.status      = createGpsVelStatusMessage(ref_log_gps_vel);
   gps_vel_message.gps_tow     = ref_log_gps_vel.timeOfWeek;
   gps_vel_message.course_acc  = ref_log_gps_vel.courseAcc;
@@ -1136,8 +1161,7 @@ const nav_msgs::msg::Odometry MessageWrapper::createRosOdoMessage(const sbg_driv
       pose.position.y = first_valid_northing_;
       pose.position.z = first_valid_altitude_;
 
-      fillTransform(odom_init_frame_id_, odom_base_frame_id_, pose, transform);
-      tf_broadcaster_->sendTransform(transform);
+      fillTransform(odom_init_frame_id_, odom_frame_id_, pose, transform);
       static_tf_broadcaster_->sendTransform(transform);
     }
   }
@@ -1184,7 +1208,7 @@ const nav_msgs::msg::Odometry MessageWrapper::createRosOdoMessage(const sbg_driv
   if (odom_publish_tf_)
   {
     // Publish odom transformation.
-    fillTransform(odom_base_frame_id_, odo_ros_msg.header.frame_id, odo_ros_msg.pose.pose, transform);
+    fillTransform(odo_ros_msg.header.frame_id, odom_base_frame_id_, odo_ros_msg.pose.pose, transform);
     tf_broadcaster_->sendTransform(transform);
   }
 
@@ -1247,7 +1271,6 @@ const nav_msgs::msg::Odometry MessageWrapper::createRosOdoMessage(const sbg_driv
       pose.position.z = first_valid_altitude_;
 
       fillTransform(odom_init_frame_id_, odom_frame_id_, pose, transform);
-      tf_broadcaster_->sendTransform(transform);
       static_tf_broadcaster_->sendTransform(transform);
     }
   }
@@ -1436,7 +1459,8 @@ const sensor_msgs::msg::NavSatFix MessageWrapper::createRosNavSatFixMessage(cons
 {
   sensor_msgs::msg::NavSatFix nav_sat_fix_message;
 
-  nav_sat_fix_message.header = createRosHeader(ref_sbg_gps_msg.time_stamp);
+  nav_sat_fix_message.header          = createRosHeader(ref_sbg_gps_msg.time_stamp);
+  nav_sat_fix_message.header.frame_id = ref_sbg_gps_msg.header.frame_id;
 
   if (ref_sbg_gps_msg.status.type == SBG_ECOM_GNSS_POS_TYPE_NO_SOLUTION)
   {
